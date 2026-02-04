@@ -1362,15 +1362,6 @@ def page_planning(
     cell_mid = query_params.get("cell_mid", None)
     cell_date = query_params.get("cell_date", None)
     
-    # Eğer query param var ama modal açık değilse ve last_open_key yoksa, temizle
-    # (sayfa yenilendi veya başka tab'a geçildi)
-    modal_open = st.session_state.get("modal_open", False)
-    last_open_key = st.session_state.get("last_open_key", None)
-    if (cell_mid or cell_date) and not modal_open and not last_open_key:
-        _clear_cell_query_params()
-        cell_mid = None
-        cell_date = None
-    
     # One-shot event gate: sadece yeni query param geldiyse modal aç
     if cell_mid and cell_date and not read_only and not flash_success:
         try:
@@ -1378,8 +1369,9 @@ def page_planning(
             clicked_date = datetime.strptime(cell_date, "%Y-%m-%d").date()
             current_key = f"{member_id}|{cell_date}"
             last_open_key = st.session_state.get("last_open_key", None)
+            modal_open = st.session_state.get("modal_open", False)
             
-            # Sadece yeni bir tıklama ise modal aç
+            # Sadece yeni bir tıklama ise modal aç (last_open_key farklı veya yok)
             if current_key != last_open_key:
                 clicked_member = next((m for m in members if m["id"] == member_id), None)
                 if clicked_member:
@@ -1433,6 +1425,24 @@ def page_planning(
         table_html += f'<th class="{header_class}" style="text-align:center; padding:0.5rem; border:1px solid #e5e7eb; {header_style} font-weight:600; min-width:80px;">{header_text}</th>'
     table_html += '</tr></thead>'
     
+    # PERFORMANCE: Batch query - tüm vardiyaları tek seferde çek
+    start_date = min(days).isoformat()
+    end_date = max(days).isoformat()
+    all_shifts = list_shift_entries_for_department_and_range(selected_department_id, start_date, end_date)
+    
+    # Index: member_id (DB id) -> date -> [entries]
+    shifts_index = {}
+    for shift in all_shifts:
+        db_member_id = shift.get("team_member_id")  # DB id (integer)
+        shift_date = shift.get("date")
+        if not shift_date or not db_member_id:
+            continue
+        if db_member_id not in shifts_index:
+            shifts_index[db_member_id] = {}
+        if shift_date not in shifts_index[db_member_id]:
+            shifts_index[db_member_id][shift_date] = []
+        shifts_index[db_member_id][shift_date].append(shift)
+    
     # Body rows
     table_html += '<tbody>'
     for member in members:
@@ -1443,7 +1453,8 @@ def page_planning(
         # Gün hücreleri
         for d in days:
             date_str = d.isoformat()
-            entries = list_shift_entries_for_member_and_date(member["id"], date_str)
+            # Index'ten çek (tek query'den)
+            entries = shifts_index.get(member["id"], {}).get(date_str, [])
             is_weekend = d.weekday() >= 5
             cell_class = "weekend-cell" if is_weekend else "normal-cell"
             cell_style = "background:#f9fafb;" if is_weekend else ""

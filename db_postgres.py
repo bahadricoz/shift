@@ -446,7 +446,8 @@ def list_shift_entries_for_department_and_range(
             session.query(
                 Shift.id,
                 Shift.date,
-                TeamMember.team_member_id,
+                Shift.team_member_id,  # DB id (FK)
+                TeamMember.team_member_id.label("team_member_manual_id"),  # Manuel ID (string)
                 TeamMember.team_member,
                 Shift.work_type,
                 Shift.food_payment,
@@ -469,7 +470,8 @@ def list_shift_entries_for_department_and_range(
             {
                 "id": r.id,
                 "date": r.date.isoformat() if r.date else None,
-                "team_member_id": int(r.team_member_id) if r.team_member_id.isdigit() else r.team_member_id,
+                "team_member_id": r.team_member_id,  # DB id (integer)
+                "team_member_manual_id": int(r.team_member_manual_id) if r.team_member_manual_id and r.team_member_manual_id.isdigit() else r.team_member_manual_id,
                 "team_member": r.team_member,
                 "work_type": r.work_type,
                 "food_payment": r.food_payment,
