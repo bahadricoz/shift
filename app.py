@@ -1647,7 +1647,7 @@ def page_bulk_operations(selected_dept_id: Optional[int], picked_date: date):
     
     st.markdown("---")
     st.subheader("2. Vardiya Kopyalama")
-    st.write("Bir personelin vardiyasını diğer personellere kopyalayın.")
+    st.write("Bir personelin vardiyasını diğer personellere kopyalayın. Kaynak tarih aralığını farklı tarihlere kopyalayabilirsiniz.")
     
     source_member = st.selectbox(
         "Kaynak personel",
@@ -1663,71 +1663,118 @@ def page_bulk_operations(selected_dept_id: Optional[int], picked_date: date):
         key="copy_targets",
     )
     
-    col_copy_date1, col_copy_date2 = st.columns(2)
-    with col_copy_date1:
-        copy_start_date = st.date_input("Kopyalanacak başlangıç tarihi", value=picked_date, key="copy_start")
-    with col_copy_date2:
-        copy_end_date = st.date_input("Kopyalanacak bitiş tarihi", value=picked_date, key="copy_end")
+    st.markdown("**Kaynak tarih aralığı (kopyalanacak vardiyalar):**")
+    col_source_date1, col_source_date2 = st.columns(2)
+    with col_source_date1:
+        source_start_date = st.date_input("Kaynak başlangıç tarihi", value=picked_date, key="copy_source_start")
+    with col_source_date2:
+        source_end_date = st.date_input("Kaynak bitiş tarihi", value=picked_date, key="copy_source_end")
+    
+    st.markdown("**Hedef tarih aralığı (vardiyaların kopyalanacağı tarihler):**")
+    col_target_date1, col_target_date2 = st.columns(2)
+    with col_target_date1:
+        target_start_date = st.date_input("Hedef başlangıç tarihi", value=picked_date, key="copy_target_start")
+    with col_target_date2:
+        target_end_date = st.date_input("Hedef bitiş tarihi", value=picked_date, key="copy_target_end")
     
     if st.button("Vardiyaları Kopyala", key="bulk_copy"):
         if not target_member_ids:
             st.warning("En az bir hedef personel seçin.")
-        elif copy_start_date > copy_end_date:
-            st.error("Başlangıç tarihi bitiş tarihinden büyük olamaz.")
+        elif source_start_date > source_end_date:
+            st.error("Kaynak başlangıç tarihi bitiş tarihinden büyük olamaz.")
+        elif target_start_date > target_end_date:
+            st.error("Hedef başlangıç tarihi bitiş tarihinden büyük olamaz.")
         else:
-            copied_count = 0
-            errors = []
+            # Tarih aralığı uzunluklarını kontrol et
+            source_range = (source_end_date - source_start_date).days + 1
+            target_range = (target_end_date - target_start_date).days + 1
             
-            current_date = copy_start_date
-            while current_date <= copy_end_date:
-                date_str = current_date.isoformat()
-                source_entries = list_shift_entries_for_member_and_date(source_member[0], date_str)
-                
-                for entry in source_entries:
-                    entry_dict = dict(entry)
-                    for target_member_id_tuple in target_member_ids:
-                        target_member_id = target_member_id_tuple[0]
-                        try:
-                            payload = {
-                                "date": date_str,
-                                "team_member_id": target_member_id,
-                                "work_type": entry_dict["work_type"],
-                                "food_payment": entry_dict["food_payment"],
-                                "shift_start": entry_dict.get("shift_start"),
-                                "shift_end": entry_dict.get("shift_end"),
-                                "overtime_start": entry_dict.get("overtime_start"),
-                                "overtime_end": entry_dict.get("overtime_end"),
-                            }
-                            
-                            val = validate_shift_payload(payload)
-                            if not val.valid:
-                                errors.append(f"{date_str}: {', '.join(val.errors)}")
-                                continue
-                            
-                            overlap = check_overlap_for_member_date(
-                                target_member_id,
-                                date_str,
-                                payload.get("shift_start"),
-                                payload.get("shift_end"),
-                            )
-                            if not overlap.valid:
-                                errors.append(f"{date_str}: {', '.join(overlap.errors)}")
-                                continue
-                            
-                            create_shift_entry(payload)
-                            copied_count += 1
-                        except Exception as e:
-                            errors.append(f"{date_str}: {str(e)}")
+            if source_range != target_range:
+                st.error(f"Kaynak ve hedef tarih aralıkları aynı uzunlukta olmalı. Kaynak: {source_range} gün, Hedef: {target_range} gün")
+            else:
+                copied_count = 0
+                errors = []
                 
                 from datetime import timedelta
-                current_date = current_date + timedelta(days=1)
-            
-            if copied_count > 0:
-                st.success(f"{copied_count} vardiya kopyalandı.")
-            if errors:
-                st.error(f"Hatalar: {len(errors)} kayıt kopyalanamadı.")
-                for err in errors[:10]:
-                    st.text(err)
+                source_date = source_start_date
+                target_date = target_start_date
+                day_offset = 0
+                
+                while source_date <= source_end_date and target_date <= target_end_date:
+                    source_date_str = source_date.isoformat()
+                    target_date_str = target_date.isoformat()
+                    
+                    source_entries = list_shift_entries_for_member_and_date(source_member[0], source_date_str)
+                    
+                    for entry in source_entries:
+                        entry_dict = dict(entry)
+                        for target_member_id_tuple in target_member_ids:
+                            target_member_id = target_member_id_tuple[0]
+                            try:
+                                # Tarih offset'ini shift_start/end'e de uygula
+                                shift_start = None
+                                shift_end = None
+                                overtime_start = None
+                                overtime_end = None
+                                
+                                if entry_dict.get("shift_start"):
+                                    # shift_start datetime'ını parse et, tarihini değiştir
+                                    from datetime import datetime
+                                    src_dt = datetime.strptime(entry_dict["shift_start"], "%Y-%m-%d %H:%M")
+                                    shift_start = datetime.combine(target_date, src_dt.time()).strftime("%Y-%m-%d %H:%M")
+                                
+                                if entry_dict.get("shift_end"):
+                                    src_dt = datetime.strptime(entry_dict["shift_end"], "%Y-%m-%d %H:%M")
+                                    shift_end = datetime.combine(target_date, src_dt.time()).strftime("%Y-%m-%d %H:%M")
+                                
+                                if entry_dict.get("overtime_start"):
+                                    src_dt = datetime.strptime(entry_dict["overtime_start"], "%Y-%m-%d %H:%M")
+                                    overtime_start = datetime.combine(target_date, src_dt.time()).strftime("%Y-%m-%d %H:%M")
+                                
+                                if entry_dict.get("overtime_end"):
+                                    src_dt = datetime.strptime(entry_dict["overtime_end"], "%Y-%m-%d %H:%M")
+                                    overtime_end = datetime.combine(target_date, src_dt.time()).strftime("%Y-%m-%d %H:%M")
+                                
+                                payload = {
+                                    "date": target_date_str,
+                                    "team_member_id": target_member_id,
+                                    "work_type": entry_dict["work_type"],
+                                    "food_payment": entry_dict["food_payment"],
+                                    "shift_start": shift_start,
+                                    "shift_end": shift_end,
+                                    "overtime_start": overtime_start,
+                                    "overtime_end": overtime_end,
+                                }
+                                
+                                val = validate_shift_payload(payload)
+                                if not val.valid:
+                                    errors.append(f"{source_date_str}→{target_date_str}: {', '.join(val.errors)}")
+                                    continue
+                                
+                                overlap = check_overlap_for_member_date(
+                                    target_member_id,
+                                    target_date_str,
+                                    payload.get("shift_start"),
+                                    payload.get("shift_end"),
+                                )
+                                if not overlap.valid:
+                                    errors.append(f"{source_date_str}→{target_date_str}: {', '.join(overlap.errors)}")
+                                    continue
+                                
+                                create_shift_entry(payload)
+                                copied_count += 1
+                            except Exception as e:
+                                errors.append(f"{source_date_str}→{target_date_str}: {str(e)}")
+                    
+                    source_date = source_date + timedelta(days=1)
+                    target_date = target_date + timedelta(days=1)
+                
+                if copied_count > 0:
+                    st.success(f"{copied_count} vardiya kopyalandı.")
+                if errors:
+                    st.error(f"Hatalar: {len(errors)} kayıt kopyalanamadı.")
+                    for err in errors[:10]:
+                        st.text(err)
     
     st.markdown("---")
     st.subheader("3. Toplu Vardiya Silme")
