@@ -546,6 +546,61 @@ def _inject_global_css() -> None:
             margin-bottom: 0.75rem;
             font-size: 0.9rem;
         }
+        
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            .main {
+                background-color: #0e1117;
+                color: #fafafa;
+            }
+            .planning-table {
+                background-color: #1e1e1e;
+                color: #fafafa;
+            }
+            .planning-table th {
+                background: #262626 !important;
+                border-color: #404040 !important;
+                color: #fafafa;
+            }
+            .planning-table th:first-child {
+                background: #262626 !important;
+            }
+            .planning-table td {
+                border-color: #404040 !important;
+                color: #fafafa;
+            }
+            .planning-table td:first-child {
+                background: #1e1e1e !important;
+                color: #fafafa;
+            }
+            .planning-table .weekend-cell {
+                background: #262626 !important;
+            }
+            .planning-table .weekend-header {
+                background: #2a2a2a !important;
+            }
+            .cell-link {
+                color: #fafafa;
+            }
+            .cell-link:hover {
+                background-color: #2a2a2a !important;
+            }
+            .planning-table .weekend-cell .cell-link:hover {
+                background-color: #333333 !important;
+            }
+            .time-range {
+                color: #d1d5db;
+            }
+            .type-label {
+                color: #9ca3af;
+            }
+            h1, h2, h3, h4, h5, h6 {
+                color: #fafafa;
+            }
+            div[data-testid="column"]:first-child {
+                background-color: #1e1e1e !important;
+            }
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -1366,6 +1421,18 @@ def page_planning(
     cell_date = query_params.get("cell_date", None) if not flash_success else None
     
     # One-shot event gate: sadece yeni query param geldiyse modal aç
+    # ÖNEMLİ: Viewer'da (read_only=True) modal açılmamalı
+    if cell_mid and cell_date and not read_only and not flash_success:
+        # Token kontrolü: Eğer URL'deki token viewer ise, modal açma
+        current_url_token = query_params.get("token", "")
+        if current_url_token:
+            link_info = get_access_link_by_token(current_url_token)
+            if link_info and link_info.get("role") == "viewer":
+                # Viewer token ile modal açılmamalı
+                _clear_cell_query_params()
+                cell_mid = None
+                cell_date = None
+    
     if cell_mid and cell_date and not read_only and not flash_success:
         try:
             member_id = int(cell_mid)
@@ -1465,10 +1532,13 @@ def page_planning(
             # Badge içeriği
             badge_content = _render_table_cell_badge(entries)
             
-            # Tıklanabilir cell (admin'de) - <a href> link kullan (token ile)
+            # Tıklanabilir cell (sadece admin'de) - <a href> link kullan (token ile)
+            # ÖNEMLİ: Viewer'da (read_only=True) hücreler tıklanamaz olmalı
             if not read_only and access_token:
                 member_id = member["id"]
-                link_href = f"?token={access_token}&cell_mid={member_id}&cell_date={date_str}"
+                # Mevcut URL'deki token'ı koru (viewer token viewer kalır, admin token admin kalır)
+                current_token = st.query_params.get("token", access_token)
+                link_href = f"?token={current_token}&cell_mid={member_id}&cell_date={date_str}"
                 # Hücre içeriği link olarak render et (boş olsa bile tıklanabilir)
                 cell_content = f'<a class="cell-link" href="{link_href}" target="_self">{badge_content if badge_content else "&nbsp;"}</a>'
                 cell_html = f'<td class="{cell_class}" style="padding:0; border:1px solid #e5e7eb; {cell_style} text-align:center; vertical-align:middle; min-height:60px; height:60px;">{cell_content}</td>'
