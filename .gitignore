@@ -6,6 +6,9 @@ __pycache__/
 # Streamlit local secrets (DO NOT COMMIT)
 .streamlit/secrets.toml
 
+# Local env (DO NOT COMMIT)
+.env
+
 # Local SQLite (legacy)
 shifts.db
 
