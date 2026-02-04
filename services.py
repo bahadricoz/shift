@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, date as date_cls, time as time_cls, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
-from db import (
+from db_postgres import (
     list_shift_entries_for_member_and_date,
     list_shift_entries_for_department_and_range,
 )
