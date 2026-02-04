@@ -2002,6 +2002,14 @@ def main():
     else:
         tabs = st.tabs(["Planning"])
 
+    # ÖNEMLİ: Planning tab'ı dışındaki tab'lara geçildiğinde query param'ları hemen temizle
+    # Bu, Planning tab'ı render edilmeden önce yapılmalı
+    if is_admin:
+        # Eğer query param'lar varsa ama modal açık değilse, temizle (başka tab'dan gelindi demektir)
+        query_params = st.query_params
+        if (query_params.get("cell_mid") or query_params.get("cell_date")) and not st.session_state.get("modal_open", False):
+            _clear_cell_query_params()
+
     with tabs[0]:
         page_planning(
             selected_department_id=department_id,
