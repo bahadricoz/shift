@@ -291,7 +291,16 @@ def export_csv_rows(
 
     export_rows: List[Dict[str, Any]] = []
     for r in rows:
-        tm_id = int(r["team_member_id"])
+        # team_member_manual_id kullan (kullanıcının girdiği manuel ID)
+        tm_manual_id = r.get("team_member_manual_id") or r.get("team_member_id")
+        # Eğer string ise int'e çevir
+        if isinstance(tm_manual_id, str) and tm_manual_id.isdigit():
+            tm_id = int(tm_manual_id)
+        elif isinstance(tm_manual_id, (int, float)):
+            tm_id = int(tm_manual_id)
+        else:
+            tm_id = tm_manual_id  # Fallback
+        
         wt = (r["work_type"] or "").strip()
         fp = (r["food_payment"] or "").strip()
 
@@ -304,7 +313,7 @@ def export_csv_rows(
 
         record = {
             "date": fmt_date(r["date"]),
-            "team_member_id": tm_id,
+            "team_member_id": tm_id,  # Manuel ID (kullanıcının girdiği)
             "team_member": (r["team_member"] or "").upper(),
             "work_type": wt.upper(),
             "food_payment": fp.upper(),
