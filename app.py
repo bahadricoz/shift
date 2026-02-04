@@ -2013,18 +2013,22 @@ def main():
     if is_admin:
         with tabs[1]:
             _clear_modal_state()
+            _clear_cell_query_params()  # Query param'ları da temizle
             page_departments_people()
 
         with tabs[2]:
             _clear_modal_state()
+            _clear_cell_query_params()
             page_export()
 
         with tabs[3]:
             _clear_modal_state()
+            _clear_cell_query_params()
             page_share(department_id, token)
 
         with tabs[4]:
             _clear_modal_state()
+            _clear_cell_query_params()  # Toplu işlemler sekmesine geçildiğinde query param'ları temizle
             page_bulk_operations(department_id, picked_date)
 
 
