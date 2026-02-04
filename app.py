@@ -1205,7 +1205,8 @@ def _show_shift_dialog(member: dict, current_date: date, read_only: bool) -> Non
                                 else:
                                     try:
                                         update_shift_entry(e["id"], payload)
-                                        st.success("Vardiya güncellendi.")
+                                        # Flash mesaj set et
+                                        st.session_state.flash_success = "Vardiya güncellendi."
                                         # Modal state'lerini temizle
                                         _clear_modal_state()
                                         st.rerun()
