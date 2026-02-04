@@ -1482,7 +1482,7 @@ def page_planning(
             # Modal açık, render et
             clicked_member = next((m for m in members if m["id"] == selected_member_id), None)
             if clicked_member:
-                _show_shift_dialog(clicked_member, selected_date, read_only)
+                _show_shift_dialog(clicked_member, selected_date, read_only, access_token=access_token)
     
     # Gün isimleri mapping
     day_names_tr = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]
