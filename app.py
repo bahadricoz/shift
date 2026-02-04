@@ -545,6 +545,16 @@ def _inject_global_css() -> None:
             border: 1px solid #fde68a;
             margin-bottom: 0.75rem;
             font-size: 0.9rem;
+            color: #78350f;
+        }
+        
+        .badge-readonly {
+            background-color: #eef2ff;
+            border-radius: 999px;
+            padding: 0.15rem 0.5rem;
+            display: inline-block;
+            font-size: 0.75rem;
+            color: #1e40af;
         }
         
         /* Dark mode support */
@@ -599,6 +609,15 @@ def _inject_global_css() -> None:
             }
             div[data-testid="column"]:first-child {
                 background-color: #1e1e1e !important;
+            }
+            .readonly-banner {
+                background: #78350f !important;
+                border: 1px solid #92400e !important;
+                color: #fef3c7 !important;
+            }
+            .badge-readonly {
+                background-color: #1e3a8a !important;
+                color: #dbeafe !important;
             }
         }
         </style>
