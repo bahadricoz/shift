@@ -74,6 +74,19 @@ def _build_access_url(token: str) -> str:
     return f"?token={token}"
 
 
+def _get_global_admin_token_secret() -> Optional[str]:
+    """Read GLOBAL_ADMIN_TOKEN from Streamlit secrets or env (optional)."""
+    try:
+        tok = st.secrets.get("GLOBAL_ADMIN_TOKEN") if hasattr(st, "secrets") else None
+    except Exception:
+        tok = None
+    if not tok:
+        tok = os.getenv("GLOBAL_ADMIN_TOKEN")
+    if not tok:
+        return None
+    return str(tok)
+
+
 def _resolve_token_access() -> Dict[str, Any]:
     """
     Resolve token-based access from URL query params.
@@ -168,6 +181,59 @@ def render_access_denied(error_msg: str):
                 st.error(f"Kurulum hatası: {e}")
                 st.stop()
 
+        st.stop()
+
+    # Recovery / setup mode: if links already exist but user has no token
+    if error_msg == "Token required" and not no_links_yet:
+        st.info("Bu uygulama token ile açılır. Daha önce link üretildiği için bootstrap ekranı otomatik açılmıyor.")
+        st.markdown("### Kurulum / Kurtarma")
+
+        secret_setup_token = _get_global_admin_token_secret()
+        if not secret_setup_token:
+            st.warning(
+                "`GLOBAL_ADMIN_TOKEN` tanımlı değil. Linkleri geri almak için Streamlit Cloud > Settings > Secrets içine "
+                "`GLOBAL_ADMIN_TOKEN = \"...\"` ekleyin (rastgele uzun bir değer), sonra bu sayfayı yenileyin."
+            )
+            st.stop()
+
+        entered = st.text_input("Kurulum anahtarı (GLOBAL_ADMIN_TOKEN)", type="password", key="setup_token_entered")
+        if entered and entered != secret_setup_token:
+            st.error("Kurulum anahtarı yanlış.")
+            st.stop()
+        if not entered:
+            st.caption("Kurulum anahtarını girince mevcut departman linklerini görebilirsiniz.")
+            st.stop()
+
+        # Authorized setup panel
+        departments = list_departments()
+        if not departments:
+            st.error("Hiç departman yok. Önce bir departman oluşturmanız gerekir.")
+            dept_name = st.text_input("Departman adı", value="Genel", key="setup_create_dept_name")
+            if st.button("Departman oluştur", type="primary", key="setup_create_dept_btn"):
+                dept_id = create_department(dept_name.strip())
+                st.success("Departman oluşturuldu. Sayfayı yenileyin.")
+            st.stop()
+
+        dept_options = {d["name"]: d["id"] for d in departments}
+        dept_name = st.selectbox("Departman seç", options=list(dept_options.keys()), key="setup_pick_dept")
+        dept_id = dept_options[dept_name]
+
+        st.markdown("#### Linkleri Göster / Oluştur")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("👑 Admin linki göster/oluştur", type="primary", key="setup_admin_show"):
+                admin_link = get_access_link_by_department_and_role(dept_id, "admin") or create_access_link(
+                    dept_id, "admin", f"{dept_name} | Admin"
+                )
+                st.code(_build_access_url(admin_link["token"]), language="text")
+        with col2:
+            if st.button("👁️ Viewer linki göster/oluştur", key="setup_viewer_show"):
+                viewer_link = get_access_link_by_department_and_role(dept_id, "viewer") or create_access_link(
+                    dept_id, "viewer", f"{dept_name} | Viewer"
+                )
+                st.code(_build_access_url(viewer_link["token"]), language="text")
+
+        st.caption("Not: Bu ekran sadece GLOBAL_ADMIN_TOKEN bilen kişiler için.")
         st.stop()
 
     st.info("Geçerli bir erişim linki ile giriş yapmanız gerekiyor.")

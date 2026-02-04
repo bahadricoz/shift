@@ -48,6 +48,8 @@ cp .streamlit/secrets.toml.example .streamlit/secrets.toml
 DATABASE_URL = "postgresql+psycopg://user:password@ep-xxx-xxx.region.aws.neon.tech/dbname?sslmode=require"
 # Opsiyonel: Paylaşım linklerini tam URL olarak göstermek için:
 # APP_BASE_URL = "https://your-app.streamlit.app"
+# Opsiyonel: Kurulum/kurtarma ekranını açmak için (token kaybolursa):
+# GLOBAL_ADMIN_TOKEN = "uzun-rastgele-bir-deger"
 ```
 
 **Streamlit Cloud Deploy:**
