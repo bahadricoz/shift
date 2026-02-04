@@ -1185,8 +1185,22 @@ def _clear_modal_state():
         st.session_state.last_open_key = None
 
 
-def _show_shift_dialog(member: dict, current_date: date, read_only: bool) -> None:
-    """Seçili personel + gün için vardiyaları gösteren dialog/panel."""
+def _show_shift_dialog(member: dict, current_date: date, read_only: bool, access_token: Optional[str] = None) -> None:
+    """
+    Seçili personel + gün için vardiyaları gösteren dialog/panel.
+    
+    Args:
+        member: Team member dict
+        current_date: Date to show shifts for
+        read_only: If True, no editing allowed
+        access_token: Optional token to verify role (extra security check)
+    """
+    # GÜVENLİK: Eğer access_token viewer ise, read_only zorunlu
+    if access_token:
+        link_info = get_access_link_by_token(access_token)
+        if link_info and link_info.get("role") == "viewer":
+            read_only = True  # Viewer her zaman read-only
+    
     date_str_outer = current_date.isoformat()  # Closure için dış scope'ta tanımla
 
     def body():
