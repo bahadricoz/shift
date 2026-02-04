@@ -1261,7 +1261,7 @@ def _show_shift_dialog(member: dict, current_date: date, read_only: bool) -> Non
     dialog_fn = getattr(st, "dialog", None) or getattr(
         st, "experimental_dialog", None
     )
-    title = f"Shift Düzenle: {member['team_member']} — {date_str}"
+    title = f"Shift Düzenle: {member['team_member']} — {date_str_outer}"
 
     if dialog_fn is not None:
         @dialog_fn(title)
