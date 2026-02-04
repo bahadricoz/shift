@@ -1357,9 +1357,10 @@ def page_planning(
         st.session_state.flash_success = None
 
     # Query param kontrolü - cell tıklaması için (one-shot event gate)
+    # ÖNEMLİ: Eğer flash_success varsa (yani başka bir tab'dan gelindi), query param'ları yok say
     query_params = st.query_params
-    cell_mid = query_params.get("cell_mid", None)
-    cell_date = query_params.get("cell_date", None)
+    cell_mid = query_params.get("cell_mid", None) if not flash_success else None
+    cell_date = query_params.get("cell_date", None) if not flash_success else None
     
     # One-shot event gate: sadece yeni query param geldiyse modal aç
     if cell_mid and cell_date and not read_only and not flash_success:
