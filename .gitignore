@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Streamlit local secrets (DO NOT COMMIT)
+.streamlit/secrets.toml
+
+# Local SQLite (legacy)
+shifts.db
+
