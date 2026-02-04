@@ -208,10 +208,20 @@ def build_export_rows(
 
     export_rows: List[Dict[str, Any]] = []
     for r in rows:
+        # team_member_manual_id kullan (kullanıcının girdiği manuel ID)
+        tm_manual_id = r.get("team_member_manual_id") or r.get("team_member_id")
+        # Eğer string ise int'e çevir
+        if isinstance(tm_manual_id, str) and tm_manual_id.isdigit():
+            tm_id = int(tm_manual_id)
+        elif isinstance(tm_manual_id, (int, float)):
+            tm_id = int(tm_manual_id)
+        else:
+            tm_id = tm_manual_id  # Fallback
+        
         export_rows.append(
             {
                 "date": r["date"],
-                "team_member_id": r["team_member_id"],
+                "team_member_id": tm_id,  # Manuel ID (kullanıcının girdiği)
                 "team_member": r["team_member"],
                 "work_type": r["work_type"],
                 "food_payment": r["food_payment"],
