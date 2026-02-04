@@ -1132,10 +1132,10 @@ def _clear_modal_state():
 
 def _show_shift_dialog(member: dict, current_date: date, read_only: bool) -> None:
     """Seçili personel + gün için vardiyaları gösteren dialog/panel."""
-    date_str = current_date.isoformat()
+    date_str_outer = current_date.isoformat()  # Closure için dış scope'ta tanımla
 
     def body():
-        entries = list_shift_entries_for_member_and_date(member["id"], date_str)
+        entries = list_shift_entries_for_member_and_date(member["id"], date_str_outer)
 
         if read_only:
             st.markdown(
@@ -1148,8 +1148,7 @@ def _show_shift_dialog(member: dict, current_date: date, read_only: bool) -> Non
             if st.button("🗑️ Sil (Bu günü temizle)", key="delete_all_shifts", type="secondary"):
                 try:
                     # Tüm vardiyaları sil (tek sorgu ile)
-                    date_str = current_date.isoformat()
-                    deleted_count = delete_shifts_for_member_and_date(member["id"], date_str)
+                    deleted_count = delete_shifts_for_member_and_date(member["id"], date_str_outer)
                     
                     # Flash mesaj set et
                     st.session_state.flash_success = "Bu gün için tüm vardiyalar silindi."
