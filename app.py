@@ -2112,15 +2112,23 @@ def main():
     
     if is_viewer:
         st.sidebar.info("🔒 Read-only modu - Sadece görüntüleme")
-    
-    today = date.today()
-    picked_date = today
+        # Viewer için minimal sidebar - sadece tarih seçimi
+        today = date.today()
+        picked_date = st.sidebar.date_input(
+            "Ay (herhangi bir gününü seçin)",
+            value=today,
+            key="viewer_planning_month",
+        )
+    else:
+        today = date.today()
+        picked_date = today
 
     # Tabs - viewer'da sadece Planning, admin'de tüm sekmeler
     if is_admin:
         tabs = st.tabs(["Planning", "People", "Export", "Paylaşım", "Toplu İşlemler"])
     else:
-        tabs = st.tabs(["Planning"])
+        # Viewer için tab yok, direkt planning göster
+        tabs = None
 
     # ÖNEMLİ: Planning tab'ı dışındaki tab'lara geçildiğinde query param'ları hemen temizle
     # Bu, Planning tab'ı render edilmeden önce yapılmalı
@@ -2129,11 +2137,23 @@ def main():
     if (query_params_check.get("cell_mid") or query_params_check.get("cell_date")) and not st.session_state.get("modal_open", False):
         _clear_cell_query_params()
 
+    # Viewer için direkt planning göster (tab yok)
+    if is_viewer:
+        page_planning(
+            selected_department_id=department_id,
+            picked_date=picked_date,
+            read_only=True,  # Viewer her zaman read-only
+            public_ctx=None,
+            access_token=token,
+        )
+        st.stop()  # Viewer için burada dur, başka hiçbir şey render etme
+    
+    # Admin için tab'lar
     with tabs[0]:
         page_planning(
             selected_department_id=department_id,
             picked_date=picked_date,
-            read_only=is_viewer,
+            read_only=False,  # Admin her zaman edit yapabilir
             public_ctx=None,
             access_token=token,
         )
