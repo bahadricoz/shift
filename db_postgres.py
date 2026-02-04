@@ -159,8 +159,12 @@ def get_engine():
             database_url,
             poolclass=QueuePool,
             pool_pre_ping=True,
-            pool_size=2,
-            max_overflow=3,
+            pool_size=5,  # Increased for better concurrency
+            max_overflow=10,  # Increased for burst traffic
+            pool_recycle=3600,  # Recycle connections after 1 hour
+            connect_args={
+                "connect_timeout": 10,  # 10 second connection timeout
+            },
             echo=False,  # Set to True for SQL debugging
         )
     return _engine
