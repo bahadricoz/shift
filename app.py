@@ -1355,9 +1355,9 @@ def page_planning(
         st.title("Planning")
 
     if read_only:
+        # Viewer için minimal banner
         st.markdown(
-            "<div class='readonly-banner'>Bu görünüm paylaşılmış, sadece okuma amaçlıdır. "
-            "Saatleri değiştiremezsiniz.</div>",
+            "<div class='readonly-banner'>🔒 Sadece görüntüleme - Düzenleme yapılamaz</div>",
             unsafe_allow_html=True,
         )
 
@@ -1368,20 +1368,25 @@ def page_planning(
         st.info("Bu departmanda henüz personel yok.")
         return
 
-    col_view, col_date = st.columns([1, 2])
-    with col_view:
-        view_mode = st.radio(
-            "Görünüm",
-            ["Ay görünümü", "Hafta görünümü"],
-            horizontal=True,
-            key="view_mode",
-        )
-    with col_date:
-        picked_date = st.date_input(
-            "Ay (herhangi bir gününü seçin)",
-            value=picked_date,
-            key="planning_month",
-        )
+    # Viewer için minimal kontroller
+    if read_only:
+        # Viewer için sadece ay görünümü, tarih seçimi sidebar'da
+        view_mode = "Ay görünümü"
+    else:
+        col_view, col_date = st.columns([1, 2])
+        with col_view:
+            view_mode = st.radio(
+                "Görünüm",
+                ["Ay görünümü", "Hafta görünümü"],
+                horizontal=True,
+                key="view_mode",
+            )
+        with col_date:
+            picked_date = st.date_input(
+                "Ay (herhangi bir gününü seçin)",
+                value=picked_date,
+                key="planning_month",
+            )
 
     if view_mode == "Ay görünümü":
         year = picked_date.year
@@ -1394,23 +1399,26 @@ def page_planning(
 
     st.markdown("---")
     
-    # Vardiya tipleri legend (açık yazılarla)
-    st.markdown(
-        """
-        <div style="margin-bottom: 1rem; padding: 0.5rem; background: #f9fafb; border-radius: 0.5rem; font-size: 0.85rem;">
-        <strong>Vardiya Tipleri:</strong> 
-        <span style="background: #3b82f6; color: white; padding: 0.15rem 0.4rem; border-radius: 999px; margin: 0 0.3rem;">Office</span>
-        <span style="background: #10b981; color: white; padding: 0.15rem 0.4rem; border-radius: 999px; margin: 0 0.3rem;">Remote</span>
-        <span style="background: #8b5cf6; color: white; padding: 0.15rem 0.4rem; border-radius: 999px; margin: 0 0.3rem;">Report</span>
-        <span style="background: #f59e0b; color: white; padding: 0.15rem 0.4rem; border-radius: 999px; margin: 0 0.3rem;">Annual Leave</span>
-        <span style="background: #ec4899; color: white; padding: 0.15rem 0.4rem; border-radius: 999px; margin: 0 0.3rem;">Custom</span>
-        <span style="background: #6b7280; color: white; padding: 0.15rem 0.4rem; border-radius: 999px; margin: 0 0.3rem;">OFF</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    # Vardiya tipleri legend (açık yazılarla) - sadece admin'de göster
+    if not read_only:
+        st.markdown(
+            """
+            <div style="margin-bottom: 1rem; padding: 0.5rem; background: #f9fafb; border-radius: 0.5rem; font-size: 0.85rem;">
+            <strong>Vardiya Tipleri:</strong> 
+            <span style="background: #3b82f6; color: white; padding: 0.15rem 0.4rem; border-radius: 999px; margin: 0 0.3rem;">Office</span>
+            <span style="background: #10b981; color: white; padding: 0.15rem 0.4rem; border-radius: 999px; margin: 0 0.3rem;">Remote</span>
+            <span style="background: #8b5cf6; color: white; padding: 0.15rem 0.4rem; border-radius: 999px; margin: 0 0.3rem;">Report</span>
+            <span style="background: #f59e0b; color: white; padding: 0.15rem 0.4rem; border-radius: 999px; margin: 0 0.3rem;">Annual Leave</span>
+            <span style="background: #ec4899; color: white; padding: 0.15rem 0.4rem; border-radius: 999px; margin: 0 0.3rem;">Custom</span>
+            <span style="background: #6b7280; color: white; padding: 0.15rem 0.4rem; border-radius: 999px; margin: 0 0.3rem;">OFF</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     
-    st.subheader("Vardiya Planı")
+    # Viewer için başlık yok (zaten üstte "Vardiya Planı" var)
+    if not read_only:
+        st.subheader("Vardiya Planı")
 
     # Flash mesaj kontrolü (sayfa başında)
     flash_success = st.session_state.get("flash_success")
