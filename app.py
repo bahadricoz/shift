@@ -1218,7 +1218,8 @@ def _show_shift_dialog(member: dict, current_date: date, read_only: bool) -> Non
                         ) and not read_only:
                             try:
                                 delete_shift_entry(e["id"])
-                                st.success("Vardiya silindi.")
+                                # Flash mesaj set et
+                                st.session_state.flash_success = "Vardiya silindi."
                                 # Modal state'lerini temizle
                                 _clear_modal_state()
                                 st.rerun()
@@ -1250,7 +1251,8 @@ def _show_shift_dialog(member: dict, current_date: date, read_only: bool) -> Non
                     else:
                         try:
                             create_shift_entry(new_payload)
-                            st.success("Yeni vardiya eklendi.")
+                            # Flash mesaj set et (sayfa başında gösterilecek)
+                            st.session_state.flash_success = "Yeni vardiya eklendi."
                             # Modal state'lerini temizle
                             _clear_modal_state()
                             st.rerun()
@@ -2051,11 +2053,10 @@ def main():
 
     # ÖNEMLİ: Planning tab'ı dışındaki tab'lara geçildiğinde query param'ları hemen temizle
     # Bu, Planning tab'ı render edilmeden önce yapılmalı
-    if is_admin:
-        # Eğer query param'lar varsa ama modal açık değilse, temizle (başka tab'dan gelindi demektir)
-        query_params = st.query_params
-        if (query_params.get("cell_mid") or query_params.get("cell_date")) and not st.session_state.get("modal_open", False):
-            _clear_cell_query_params()
+    # Ayrıca, eğer modal açık değilse ve query param'lar varsa, temizle (başka tab'dan gelindi demektir)
+    query_params_check = st.query_params
+    if (query_params_check.get("cell_mid") or query_params_check.get("cell_date")) and not st.session_state.get("modal_open", False):
+        _clear_cell_query_params()
 
     with tabs[0]:
         page_planning(
