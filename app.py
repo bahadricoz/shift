@@ -1348,7 +1348,11 @@ def page_planning(
     public_ctx: Optional[Dict[str, Any]] = None,
     access_token: Optional[str] = None,
 ):
-    st.title("Planning")
+    # Viewer için minimal başlık
+    if read_only:
+        st.markdown("## Vardiya Planı")
+    else:
+        st.title("Planning")
 
     if read_only:
         st.markdown(
