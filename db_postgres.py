@@ -310,10 +310,12 @@ def get_team_member_by_id(member_id: int) -> Optional[Dict[str, Any]]:
 # Shift CRUD
 def list_shift_entries_for_member_and_date(team_member_db_id: int, date: str) -> List[Dict[str, Any]]:
     with get_session() as session:
+        # Postgres DATE column expects a date object (not a YYYY-MM-DD string)
+        date_obj = datetime.strptime(date, "%Y-%m-%d").date() if isinstance(date, str) else date
         shifts = (
             session.query(Shift)
             .filter(Shift.team_member_id == team_member_db_id)
-            .filter(Shift.date == date)
+            .filter(Shift.date == date_obj)
             .order_by(Shift.shift_start.is_(None), Shift.shift_start)
             .all()
         )
