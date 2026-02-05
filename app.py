@@ -1703,6 +1703,11 @@ def page_bulk_operations(selected_dept_id: Optional[int], picked_date: date):
         bulk_ot_end = st.time_input("overtime_end (opsiyonel)", value=None, key="bulk_ot_end")
     
     if st.button("Toplu Vardiya Ekle", key="bulk_add"):
+        # Toplu işlemler sekmesinde butona tıklandığında query param'ları hemen temizle
+        # Bu, Planning tab'ı render edilirken modal açılmasını önler
+        _clear_cell_query_params()
+        _clear_modal_state()
+        
         if not selected_member_ids:
             st.warning("En az bir personel seçin.")
         elif bulk_start_date > bulk_end_date:
@@ -1796,6 +1801,11 @@ def page_bulk_operations(selected_dept_id: Optional[int], picked_date: date):
         target_end_date = st.date_input("Hedef bitiş tarihi", value=picked_date, key="copy_target_end")
     
     if st.button("Vardiyaları Kopyala", key="bulk_copy"):
+        # Toplu işlemler sekmesinde butona tıklandığında query param'ları hemen temizle
+        # Bu, Planning tab'ı render edilirken modal açılmasını önler
+        _clear_cell_query_params()
+        _clear_modal_state()
+        
         if not target_member_ids:
             st.warning("En az bir hedef personel seçin.")
         elif source_start_date > source_end_date:
