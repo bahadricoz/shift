@@ -45,11 +45,10 @@ def compose_datetime_str(day: date_cls, t: Optional[time_cls]) -> Optional[str]:
     return dt.strftime(DATETIME_FORMAT)
 
 
-def parse_time_interval_text(text: str) -> Optional[Tuple[time_cls, time_cls]]:
+def parse_time_interval_text(text: str) -> Optional[Tuple[time_cls, time_cls, bool]]:
     """
-    Kullanıcının girdiği "9-18", "09:30-18:15", "9:00-18:00" gibi stringleri
-    basitçe parse edip (start_time, end_time) döndürür.
-    Geçersiz formatta None döner.
+    Kullanıcının girdiği "9-18", "09:30-18:15", "15-24" gibi stringleri parse eder.
+    Returns (start_time, end_time, end_is_24: bool). "24" veya "24:00" bitiş için end_is_24=True döner.
     """
     if not text:
         return None
@@ -73,11 +72,18 @@ def parse_time_interval_text(text: str) -> Optional[Tuple[time_cls, time_cls]]:
         except ValueError:
             return None
 
+    # 24:00 özel: bitişi "gece yarısı (ertesi gün 00:00)" olarak kabul et
+    end_is_24 = right in ("24", "24:00")
+    if end_is_24:
+        end_t = time(0, 0)
+    else:
+        end_t = _norm(right)
     start_t = _norm(left)
-    end_t = _norm(right)
-    if not start_t or not end_t:
+    if not start_t or (not end_is_24 and not end_t):
         return None
-    return start_t, end_t
+    if end_is_24:
+        return start_t, time(0, 0), True
+    return start_t, end_t, False
 
 
 def validate_shift_payload(payload: Dict[str, Any]) -> ValidationResult:

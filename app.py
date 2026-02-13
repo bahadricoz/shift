@@ -1,6 +1,6 @@
 import calendar
 import os
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from typing import Optional, Dict, Any, List
 
 import pandas as pd
@@ -802,6 +802,7 @@ def _shift_segment_controls(
     # Saat inputlari - session_state'ten oku veya default None
     shift_start_key = f"{key_prefix}_shift_start"
     shift_end_key = f"{key_prefix}_shift_end"
+    end_is_24_key = f"{key_prefix}_end_is_24"
     ot_start_key = f"{key_prefix}_ot_start"
     ot_end_key = f"{key_prefix}_ot_end"
     
@@ -814,10 +815,27 @@ def _shift_segment_controls(
     
     if shift_end_key not in st.session_state:
         if existing and existing.get("shift_end"):
-            st.session_state[shift_end_key] = datetime.strptime(existing["shift_end"], "%Y-%m-%d %H:%M").time()
+            end_str = existing["shift_end"]
+            end_dt = datetime.strptime(end_str, "%Y-%m-%d %H:%M")
+            # Bitiş 24:00 ise (ertesi gün 00:00) ekranda 00:00 göster, end_is_24 ile işaretle
+            start_str = existing.get("shift_start")
+            if start_str:
+                start_dt = datetime.strptime(start_str, "%Y-%m-%d %H:%M")
+                if end_dt.date() > start_dt.date() and end_dt.hour == 0 and end_dt.minute == 0:
+                    st.session_state[shift_end_key] = time(0, 0)
+                    st.session_state[end_is_24_key] = True
+                else:
+                    st.session_state[shift_end_key] = end_dt.time()
+                    st.session_state[end_is_24_key] = False
+            else:
+                st.session_state[shift_end_key] = end_dt.time()
+                st.session_state[end_is_24_key] = False
         else:
             st.session_state[shift_end_key] = None
-    
+            st.session_state[end_is_24_key] = False
+    if end_is_24_key not in st.session_state:
+        st.session_state[end_is_24_key] = False
+
     if ot_start_key not in st.session_state:
         if existing and existing.get("overtime_start"):
             st.session_state[ot_start_key] = datetime.strptime(existing["overtime_start"], "%Y-%m-%d %H:%M").time()
@@ -847,6 +865,12 @@ def _shift_segment_controls(
                 value=st.session_state[shift_end_key] or time(18, 0),
                 key=shift_end_key,
             )
+        # Bitiş 24:00 (gece yarısı) seçeneği — 15:00-24:00 gibi vardiyalar için
+        end_is_24 = st.checkbox(
+            "Bitiş 24:00 (gece yarısı)",
+            value=st.session_state.get(end_is_24_key, False),
+            key=end_is_24_key,
+        )
         # Temizle butonları
         clear_col1, clear_col2 = st.columns(2)
         with clear_col1:
@@ -856,6 +880,7 @@ def _shift_segment_controls(
         with clear_col2:
             if st.session_state[shift_end_key] and st.button("✕ Temizle (shift_end)", key=f"{key_prefix}_clear_end"):
                 st.session_state[shift_end_key] = None
+                st.session_state[end_is_24_key] = False
                 st.rerun()
     else:
         # OFF/Annual Leave/Report için saatler opsiyonel, boş bırakılabilir
@@ -872,6 +897,11 @@ def _shift_segment_controls(
                 value=st.session_state[shift_end_key] or time(18, 0),
                 key=shift_end_key,
             )
+        end_is_24 = st.checkbox(
+            "Bitiş 24:00 (gece yarısı)",
+            value=st.session_state.get(end_is_24_key, False),
+            key=end_is_24_key,
+        )
         # Temizle butonları
         clear_col1, clear_col2 = st.columns(2)
         with clear_col1:
@@ -881,6 +911,7 @@ def _shift_segment_controls(
         with clear_col2:
             if st.session_state[shift_end_key] and st.button("✕ Temizle (shift_end)", key=f"{key_prefix}_clear_end"):
                 st.session_state[shift_end_key] = None
+                st.session_state[end_is_24_key] = False
                 st.rerun()
 
     col_ot1, col_ot2 = st.columns(2)
@@ -910,16 +941,24 @@ def _shift_segment_controls(
     # Quick preset ve metin araligi
     if show_times:
         st.caption("Quick presets")
-        preset_col1, preset_col2 = st.columns(2)
+        preset_col1, preset_col2, preset_col3 = st.columns(3)
         with preset_col1:
             if st.button("09:00 - 18:00", key=f"{key_prefix}_preset_9_18"):
                 st.session_state[shift_start_key] = time(9, 0)
                 st.session_state[shift_end_key] = time(18, 0)
+                st.session_state[end_is_24_key] = False
                 st.rerun()
         with preset_col2:
             if st.button("12:00 - 21:00", key=f"{key_prefix}_preset_12_21"):
                 st.session_state[shift_start_key] = time(12, 0)
                 st.session_state[shift_end_key] = time(21, 0)
+                st.session_state[end_is_24_key] = False
+                st.rerun()
+        with preset_col3:
+            if st.button("15:00 - 24:00", key=f"{key_prefix}_preset_15_24"):
+                st.session_state[shift_start_key] = time(15, 0)
+                st.session_state[shift_end_key] = time(0, 0)
+                st.session_state[end_is_24_key] = True
                 st.rerun()
 
         interval_text = st.text_input(
@@ -929,9 +968,10 @@ def _shift_segment_controls(
         if st.button("Text aralığını uygula", key=f"{key_prefix}_apply_interval"):
             parsed = parse_time_interval_text(interval_text)
             if parsed:
-                start_t, end_t = parsed
+                start_t, end_t, use_24 = parsed
                 st.session_state[shift_start_key] = start_t
                 st.session_state[shift_end_key] = end_t
+                st.session_state[end_is_24_key] = use_24
                 st.rerun()
             else:
                 st.warning("Saat aralığı çözülemedi, formatı kontrol edin.")
@@ -940,16 +980,23 @@ def _shift_segment_controls(
         # Session state'ten değerleri al
         shift_start_val = st.session_state.get(shift_start_key)
         shift_end_val = st.session_state.get(shift_end_key)
+        use_24 = st.session_state.get(end_is_24_key, False)
         ot_start_val = st.session_state.get(ot_start_key)
         ot_end_val = st.session_state.get(ot_end_key)
-        
+        # Bitiş 24:00 ise ertesi gün 00:00 olarak kaydet (doğrulama ve çakışma için doğru çalışır)
+        if use_24 and shift_start_val is not None:
+            shift_end_str = compose_datetime_str(current_date + timedelta(days=1), time(0, 0))
+        elif shift_end_val is not None:
+            shift_end_str = compose_datetime_str(current_date, shift_end_val)
+        else:
+            shift_end_str = None
         payload = {
             "date": date_str,
             "team_member_id": member_id,
             "work_type": wt,
             "food_payment": fp,
             "shift_start": compose_datetime_str(current_date, shift_start_val) if shift_start_val else None,
-            "shift_end": compose_datetime_str(current_date, shift_end_val) if shift_end_val else None,
+            "shift_end": shift_end_str,
             "overtime_start": compose_datetime_str(current_date, ot_start_val) if ot_start_val else None,
             "overtime_end": compose_datetime_str(current_date, ot_end_val) if ot_end_val else None,
         }
@@ -1005,13 +1052,14 @@ def _cell_label_for_entries(entries) -> tuple[str, str]:
 
 
 def _format_time_range(shift_start: Optional[str], shift_end: Optional[str]) -> str:
-    """Format shift time range for display."""
+    """Format shift time range for display. Bitiş 24:00 ise (ertesi gün 00:00) '24:00' gösterilir."""
     if not shift_start or not shift_end:
         return ""
     try:
         start_dt = datetime.strptime(shift_start, "%Y-%m-%d %H:%M")
         end_dt = datetime.strptime(shift_end, "%Y-%m-%d %H:%M")
-        return f"{start_dt.strftime('%H:%M')}–{end_dt.strftime('%H:%M')}"
+        end_str = "24:00" if (end_dt.hour == 0 and end_dt.minute == 0 and end_dt.date() != start_dt.date()) else end_dt.strftime("%H:%M")
+        return f"{start_dt.strftime('%H:%M')}–{end_str}"
     except Exception:
         return ""
 
@@ -1501,18 +1549,15 @@ def page_planning(
         except (ValueError, TypeError):
             pass
     
-    # Modal sadece modal_open == True iken render edilsin
+    # Modal sadece modal_open == True iken render edilsin.
+    # ÖNEMLİ: Modalı sadece Kapat / Kaydet / Sil veya başka sekmeye geçince kapatıyoruz.
+    # "Query param yok" diye otomatik kapatma yapmıyoruz; aksi halde link tıklayıp param
+    # temizlendikten sonra her buton tıklamasında sayfa yenilenir ve modal tekrar açılıyormuş gibi görünüyordu.
     modal_open = st.session_state.get("modal_open", False)
     if modal_open and not read_only:
         selected_member_id = st.session_state.get("selected_member_id")
         selected_date = st.session_state.get("selected_date")
-        
-        # Query param yoksa ve modal_open true ise, modal kapatıldı demektir (X'e basıldı)
-        # State'leri temizle
-        if not cell_mid and not cell_date:
-            _clear_modal_state()
-        elif selected_member_id and selected_date:
-            # Modal açık, render et
+        if selected_member_id and selected_date:
             clicked_member = next((m for m in members if m["id"] == selected_member_id), None)
             if clicked_member:
                 _show_shift_dialog(clicked_member, selected_date, read_only, access_token=access_token)
