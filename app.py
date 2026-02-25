@@ -6,6 +6,7 @@ from typing import Optional, Dict, Any, List
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
+from sqlalchemy.exc import OperationalError
 
 # Load environment variables (for local development)
 load_dotenv()
@@ -2167,6 +2168,16 @@ def main():
         init_db()
     except ValueError as e:
         st.error(f"❌ Database Configuration Error:\n\n{e}")
+        st.stop()
+        return
+    except OperationalError as e:
+        st.error(
+            "❌ Veritabanına bağlanılamadı.\n\n"
+            "**Kontrol edin:**\n"
+            "• Streamlit Cloud Secrets'ta DATABASE_URL doğru mu?\n"
+            "• Neon dashboard'da proje aktif mi? (pasif projeler uyandırılmalı)\n"
+            "• URL formatı: `postgresql://user:password@ep-xxx.region.aws.neon.tech/dbname?sslmode=require`"
+        )
         st.stop()
         return
     

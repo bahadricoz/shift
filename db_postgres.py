@@ -129,7 +129,7 @@ def get_database_url() -> str:
         raise ValueError(
             "DATABASE_URL contains placeholder values (..., xxx, ep-...).\n"
             "Please update .streamlit/secrets.toml with your actual Neon Postgres URL.\n"
-            "Format: postgresql+psycopg://user:password@ep-xxx-xxx.region.aws.neon.tech/dbname?sslmode=require"
+            "Format: postgresql://user:password@ep-xxx.region.aws.neon.tech/dbname?sslmode=require"
         )
     
     # Basic validation - should contain @ and // for connection string
@@ -147,25 +147,24 @@ def get_engine():
     if _engine is None:
         database_url = get_database_url()
         
-        # Ensure postgresql:// URL uses psycopg driver
+        # Streamlit Cloud için psycopg2-binary kullan (C derleyici gerektirmez)
         if database_url.startswith("postgresql://"):
-            database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
-        elif not database_url.startswith("postgresql+psycopg://"):
-            # If it's already postgresql+psycopg://, keep it
-            if not database_url.startswith("postgresql+psycopg2://"):
-                database_url = f"postgresql+psycopg://{database_url.split('://', 1)[1]}"
+            database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        elif database_url.startswith("postgresql+psycopg://"):
+            database_url = database_url.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
+        elif not database_url.startswith("postgresql+psycopg2://"):
+            database_url = f"postgresql+psycopg2://{database_url.split('://', 1)[1]}"
         
+        # Neon/Streamlit Cloud: pool küçük tut (connection limit), serverless uyumlu
         _engine = create_engine(
             database_url,
             poolclass=QueuePool,
             pool_pre_ping=True,
-            pool_size=5,  # Increased for better concurrency
-            max_overflow=10,  # Increased for burst traffic
-            pool_recycle=3600,  # Recycle connections after 1 hour
-            connect_args={
-                "connect_timeout": 10,  # 10 second connection timeout
-            },
-            echo=False,  # Set to True for SQL debugging
+            pool_size=2,
+            max_overflow=3,
+            pool_recycle=300,
+            connect_args={"connect_timeout": 60},  # Neon suspended compute 20-30 sn uyanır
+            echo=False,
         )
     return _engine
 
