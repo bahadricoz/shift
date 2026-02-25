@@ -126,6 +126,10 @@ def get_database_url() -> str:
             "  - Or .streamlit/secrets.toml file: DATABASE_URL = '...'"
         )
     url = str(url).strip().strip('"').strip("'")
+    # Neon'dan "psql 'postgresql://...'" kopyalandıysa sadece URL'i al
+    if url.lower().startswith("psql "):
+        url = url[5:].strip().strip("'").strip('"')
+    url = url.strip()
     # channel_binding=require bazı ortamlarda bağlantı hatası veriyor, kaldır
     url = url.replace("&channel_binding=require", "").replace("channel_binding=require&", "")
     
@@ -140,13 +144,9 @@ def get_database_url() -> str:
     # Basic validation - should contain @ and // for connection string
     if "@" not in url or "://" not in url:
         raise ValueError(
-            f"Invalid DATABASE_URL format. Expected: postgresql+psycopg://user:password@host/dbname\n"
-            f"Got: {url[:50]}..."
+            f"Invalid DATABASE_URL format. Expected: postgresql://user:password@host/dbname\n"
+            f"Got: {url[:80]}..."
         )
-    
-    # channel_binding=require bazı ortamlarda OperationalError'a sebep oluyor; kaldır
-    if "channel_binding=require" in url:
-        url = url.replace("&channel_binding=require", "").replace("channel_binding=require&", "")
     
     return url
 
