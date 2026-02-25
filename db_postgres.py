@@ -3,6 +3,7 @@ Postgres database layer using SQLAlchemy.
 Replaces db.py (SQLite) with Neon Postgres.
 """
 import os
+import time
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -21,6 +22,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
+from sqlalchemy.exc import OperationalError as SQLAlchemyOperationalError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
 from sqlalchemy.pool import QueuePool
@@ -123,6 +125,9 @@ def get_database_url() -> str:
             "  - Environment variable: export DATABASE_URL='...'\n"
             "  - Or .streamlit/secrets.toml file: DATABASE_URL = '...'"
         )
+    url = str(url).strip().strip('"').strip("'")
+    # channel_binding=require bazı ortamlarda bağlantı hatası veriyor, kaldır
+    url = url.replace("&channel_binding=require", "").replace("channel_binding=require&", "")
     
     # Validate URL - check for placeholder values
     if "..." in url or "xxx" in url.lower() or "ep-..." in url:
@@ -138,6 +143,10 @@ def get_database_url() -> str:
             f"Invalid DATABASE_URL format. Expected: postgresql+psycopg://user:password@host/dbname\n"
             f"Got: {url[:50]}..."
         )
+    
+    # channel_binding=require bazı ortamlarda OperationalError'a sebep oluyor; kaldır
+    if "channel_binding=require" in url:
+        url = url.replace("&channel_binding=require", "").replace("channel_binding=require&", "")
     
     return url
 
@@ -193,8 +202,22 @@ def get_session():
 
 
 def init_db():
-    """Create all tables if they don't exist."""
-    Base.metadata.create_all(bind=get_engine())
+    """Create all tables if they don't exist. Neon suspended compute için retry yapar."""
+    global _engine
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            engine = get_engine()
+            Base.metadata.create_all(bind=engine)
+            return
+        except SQLAlchemyOperationalError:
+            if _engine is not None:
+                _engine.dispose()
+                _engine = None
+            if attempt < max_retries - 1:
+                time.sleep(10)
+            else:
+                raise
 
 
 # Helper: Convert SQLAlchemy row to dict

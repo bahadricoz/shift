@@ -2173,10 +2173,12 @@ def main():
     except OperationalError as e:
         st.error(
             "❌ Veritabanına bağlanılamadı.\n\n"
-            "**Kontrol edin:**\n"
-            "• Streamlit Cloud Secrets'ta DATABASE_URL doğru mu?\n"
-            "• Neon dashboard'da proje aktif mi? (pasif projeler uyandırılmalı)\n"
-            "• URL formatı: `postgresql://user:password@ep-xxx.region.aws.neon.tech/dbname?sslmode=require`"
+            "**Adımlar:**\n"
+            "1. Neon dashboard → projeniz → **Connect** butonundan **yeni** connection string kopyalayın\n"
+            "2. Streamlit Cloud → **Manage app** → **Settings** → **Secrets**\n"
+            "3. `DATABASE_URL = \"postgresql://...\"` satırını bu string ile güncelleyin (tek tırnak yerine çift tırnak)\n"
+            "4. Şifrede @ # / gibi karakter varsa URL-encode edin (%40, %23, %2F)\n"
+            "5. Neon SQL Editor'de `SELECT 1` çalıştırıp bağlantının çalıştığını doğrulayın"
         )
         st.stop()
         return
